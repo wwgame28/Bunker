@@ -71,7 +71,7 @@ class Repository:
     def set_setting(self,key,value):
         self.db.execute('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',(key,json.dumps(value)))
 
-    def enqueue(self,chat,text,keyboard=None,room=None,kind='message'):
+    def enqueue(self,chat,text,keyboard=None,room=None,kind='message',photo=None):
         from bunker.services.views import chunks
         parts=chunks(text)
         # Coalesce obsolete panels, but never narrative messages or character cards.
@@ -79,6 +79,7 @@ class Repository:
             self.db.execute("DELETE FROM outbox WHERE room=? AND chat_id=? AND status='pending' AND json_extract(payload,'$.kind')='panel'",(room,int(chat)))
         for i,part in enumerate(parts):
             payload={'text':part,'keyboard':keyboard if i==len(parts)-1 else None,'kind':kind}
+            if photo and i==0: payload['photo']=photo
             self.db.execute('INSERT INTO outbox(chat_id,payload,room) VALUES(?,?,?)',(int(chat),json.dumps(payload,ensure_ascii=False),room))
 
     def due(self,now):

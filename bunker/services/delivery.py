@@ -4,7 +4,10 @@ import logging
 import time
 from aiogram.exceptions import (TelegramForbiddenError, TelegramBadRequest,
     TelegramRetryAfter, TelegramNetworkError, TelegramServerError, TelegramMigrateToChat)
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, FSInputFile
+from pathlib import Path
+
+ART_DIR=Path(__file__).resolve().parents[1]/'assets'/'catastrophes'
 
 log=logging.getLogger(__name__)
 
@@ -14,9 +17,14 @@ async def deliver_once(bot,service,now=None):
     for row in repo.due(now):
         payload=json.loads(row['payload'])
         try:
-            await bot.send_message(row['chat_id'],payload['text'],
-                reply_markup=InlineKeyboardMarkup.model_validate(payload['keyboard']) if payload['keyboard'] else None,
-                parse_mode=None)
+            photo=payload.get('photo')
+            path=ART_DIR/(photo+'.jpg') if photo and photo.startswith('catastrophes_') and photo.removeprefix('catastrophes_').isdigit() else None
+            if path and path.is_file():
+                await bot.send_photo(row['chat_id'],FSInputFile(path),caption=payload['text'],parse_mode=None)
+            else:
+                await bot.send_message(row['chat_id'],payload['text'],
+                    reply_markup=InlineKeyboardMarkup.model_validate(payload['keyboard']) if payload['keyboard'] else None,
+                    parse_mode=None)
         except TelegramRetryAfter as e:
             repo.retry(row['id'],now,e.retry_after+1)
         except TelegramMigrateToChat as e:

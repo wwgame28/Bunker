@@ -25,6 +25,11 @@ class GameService:
 
     def notify(self,r,before=None):
         now=self.clock()
+        if r['catastrophe'] and before is not None and before['phase']==Phase.LOBBY and r['act']==1:
+            c=r['catastrophe']
+            targets=[r['chat_id']] if r['chat_id'] else [p['id'] for p in r['players'].values() if p['reachable']]
+            for target in targets:
+                self.repo.enqueue(target,f"КАТАСТРОФА: {c['text']}\n{c['stages'][0]}",room=r['code'],kind='catastrophe',photo=c['id'])
         if r['chat_id']:
             self.repo.enqueue(r['chat_id'],public_text(r,now),public_keyboard(r,self.username),r['code'],'panel')
         if r['chat_id'] and r['phase']==Phase.FINISHED and r['epilogue'] and (before is None or before['phase']!=Phase.FINISHED):
